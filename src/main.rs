@@ -1,5 +1,9 @@
+#[macro_use] extern crate lazy_static;
 extern crate rspotify;
+extern crate regex;
 
+use std::io;
+use regex::Regex;
 use rspotify::spotify::client::Spotify;
 use rspotify::spotify::util::get_token;
 use rspotify::spotify::oauth2::{SpotifyClientCredentials, SpotifyOAuth};
@@ -42,14 +46,15 @@ fn main() {
             let me_id = spotify.me().unwrap().id;
 
             // get playlist tracks
-            // first playlist
-            let mut first_pl = String::from("first-playlist-url");
+            println!("Playlist Number One: ");
+            let mut first_pl = parse_playlist(get_playlist_link());
 
-            // second playlist
-            let mut second_pl = String::from("second-playlist-url");
+            println!("Playlist Number Two: ");
+            let mut second_pl = parse_playlist(get_playlist_link());
 
             // create new playlist
-            let npl_id = spotify.user_playlist_create(&me_id, "new-playlist-name", false, None)
+            let npl_name = "new-playlist-name";
+            let npl_id = spotify.user_playlist_create(&me_id, npl_name, false, None)
                 .unwrap()
                 .id;
             
@@ -63,13 +68,48 @@ fn main() {
 
             // add all tracks to new playlist
             let result = spotify.user_playlist_add_tracks(&me_id, &npl_id, &tracks_add, None);
-            println!("{:?}", result);
+            match result
+            {
+                Ok(_) => println!("Succesfully merged both Playlists and saved in: {}", npl_name),
+                Err(err) => println!("ERROR: {}", err),
+            }
         }
         None => println!("auth failed"),
     };
 }
 
-// return all track-uris in a single Playlist as Vec<String>
+
+/// Read Playlist-Link from stdin
+fn get_playlist_link() -> String
+{
+    let mut buffer = String::new();
+
+    match io::stdin().read_line(&mut buffer)
+    {
+        Ok(_) => return buffer,
+        Err(err) => panic!("ERROR: {}", err),
+    }
+}
+
+
+/// get playlist uri from link
+fn parse_playlist(
+    input: String
+) -> String
+{   
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"[a-z]{5}://[a-z]{4}\.[a-z]{7}\.[a-z]{3}/[a-z]{8}/(.*)")
+            .unwrap();
+    }
+    
+    match RE.captures(input.as_str()){
+        Some(caps) => return String::from(&caps[1]),
+        None => panic!("Not a valid link!"),
+    }
+}
+
+
+/// return all track-uris in a single Playlist as Vec<String>
 fn get_all_tracks(
     spotify: &Spotify,
     user_id: &str,
