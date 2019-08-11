@@ -1,3 +1,5 @@
+mod random_vector;
+
 #[macro_use] extern crate lazy_static;
 extern crate rspotify;
 extern crate regex;
@@ -8,6 +10,7 @@ use rspotify::spotify::client::Spotify;
 use rspotify::spotify::util::get_token;
 use rspotify::spotify::oauth2::{SpotifyClientCredentials, SpotifyOAuth};
 
+/// your client-id from spotify and the redirect-url after the OAuth
 const CLIENT_ID: &'static str = "your-client-id";
 const CLIENT_SECRET: &'static str = "your-secret-client-id";
 const REDIRECT_URI: &'static str = "http://localhost:8888/callback";
@@ -51,12 +54,6 @@ fn main() {
 
             println!("Playlist Number Two: ");
             let mut second_pl = parse_playlist(get_playlist_link());
-
-            // create new playlist
-            let npl_name = "new-playlist-name";
-            let npl_id = spotify.user_playlist_create(&me_id, npl_name, false, None)
-                .unwrap()
-                .id;
             
             // Vector with track-ids
             let mut new_pl_tracks = vec![];
@@ -64,7 +61,13 @@ fn main() {
             new_pl_tracks.push(get_all_tracks(&spotify, &me_id, Some(&mut second_pl)));
 
             // merge to one vector
-            let tracks_add = merge(new_pl_tracks, MergePattern::Append);
+            let tracks_add = merge(new_pl_tracks, get_merge_pattern());
+
+            // create new playlist
+            let npl_name = "new-playlist-name";
+            let npl_id = spotify.user_playlist_create(&me_id, npl_name, false, None)
+                .unwrap()
+                .id;
 
             // add all tracks to new playlist
             let result = spotify.user_playlist_add_tracks(&me_id, &npl_id, &tracks_add, None);
@@ -109,6 +112,35 @@ fn parse_playlist(
 }
 
 
+/// ask the user for a merge-pattern
+fn get_merge_pattern() -> MergePattern
+{
+    println!("Select your pattern:");
+    println!("\t1: Append");
+    println!("\t2: Alternate");
+    println!("\t3: Random");
+
+    let mut buffer = String::new();
+
+    match io::stdin().read_line(&mut buffer)
+    {
+        Ok(_) => {
+            match buffer.trim().parse::<u8>()
+            {
+                Ok(1) => return MergePattern::Append,
+                Ok(2) => return MergePattern::Alternate,
+                Ok(3) => return MergePattern::Random,
+                _ => {
+                    println!("Please choose valid option:");
+                    return get_merge_pattern();
+                },
+            }
+        },
+        Err(err) => panic!("ERROR: {}", err),
+    }
+
+}
+
 /// return all track-uris in a single Playlist as Vec<String>
 fn get_all_tracks(
     spotify: &Spotify,
@@ -145,19 +177,26 @@ fn merge(
             let mut out = vec![];
             // add all tracks to return-vector
             for v in playlists{
-                // out.append(&mut v);
                 out = out.iter().cloned().chain(v.iter().cloned()).collect();
             }
 
             return out;
         },
+
         MergePattern::Alternate => {
             println!("Not yet implemented");
             return vec![];
         },
+
         MergePattern::Random => {
-            println!("OK COOL");
-            return vec![];
+            let mut out = random_vector::RandomVector::new();
+            for v in playlists{
+                for t in v{
+                    out.push(t);
+                }
+            }
+
+            return out.vector;
         },
     }
 }
