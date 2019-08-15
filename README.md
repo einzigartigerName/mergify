@@ -1,6 +1,6 @@
 # mergify
 
-To build this, you need Rust-Nightly
+To build, you need Rust v1.37+
 ```bash
-cargo build
+cargo build --release
 ```
