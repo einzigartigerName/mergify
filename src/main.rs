@@ -1,18 +1,21 @@
-mod random_vector;
+// mod random_vector;
 
 #[macro_use] extern crate lazy_static;
 extern crate rspotify;
 extern crate regex;
+extern crate rand;
 
+use rand::seq::SliceRandom;
 use std::io;
+use std::collections::VecDeque;
 use regex::Regex;
 use rspotify::spotify::client::Spotify;
 use rspotify::spotify::util::get_token;
 use rspotify::spotify::oauth2::{SpotifyClientCredentials, SpotifyOAuth};
 
 /// your client-id from spotify and the redirect-url after the OAuth
-const CLIENT_ID: &'static str = "your-client-id";
-const CLIENT_SECRET: &'static str = "your-secret-client-id";
+const CLIENT_ID: &'static str = "fbf4964d9dfd419d939068bb4372f4ee";
+const CLIENT_SECRET: &'static str = "fa297e5629724ffb80dae27296b18214";
 const REDIRECT_URI: &'static str = "http://localhost:8888/callback";
 
 enum MergePattern
@@ -47,21 +50,21 @@ fn main() {
 
             // current users id
             let me_id = spotify.me().unwrap().id;
-
+            
             // get playlist tracks
             println!("Playlist Number One: ");
-            let mut first_pl = parse_playlist(get_playlist_link());
+            let first_pl = parse_playlist(get_playlist_link());
 
             println!("Playlist Number Two: ");
-            let mut second_pl = parse_playlist(get_playlist_link());
+            let second_pl = parse_playlist(get_playlist_link());
             
             // Vector with track-ids
-            let mut new_pl_tracks = vec![];
-            new_pl_tracks.push(get_all_tracks(&spotify, &me_id, Some(&mut first_pl)));
-            new_pl_tracks.push(get_all_tracks(&spotify, &me_id, Some(&mut second_pl)));
+            let mut new_pl_tracks = VecDeque::new();
+            new_pl_tracks.push_back(get_all_tracks(&spotify, first_pl.as_str()));
+            new_pl_tracks.push_back(get_all_tracks(&spotify, second_pl.as_str()));
 
             // merge to one vector
-            let tracks_add = merge(new_pl_tracks, get_merge_pattern());
+            let tracks_add = merge(&mut new_pl_tracks, get_merge_pattern());
 
             // create new playlist
             let npl_name = "new-playlist-name";
@@ -76,6 +79,7 @@ fn main() {
                 Ok(_) => println!("Succesfully merged both Playlists and saved in: {}", npl_name),
                 Err(err) => println!("ERROR: {}", err),
             }
+
         }
         None => println!("auth failed"),
     };
@@ -144,11 +148,10 @@ fn get_merge_pattern() -> MergePattern
 /// return all track-uris in a single Playlist as Vec<String>
 fn get_all_tracks(
     spotify: &Spotify,
-    user_id: &str,
-    playlist: Option<&mut str>
+    playlist: &str
 ) -> Vec<String> 
 {
-    match spotify.user_playlist(user_id, playlist, None, None)
+    match spotify.playlist(playlist, None, None)
     {
         Ok(result) => {
             let mut out = vec![];
@@ -166,7 +169,7 @@ fn get_all_tracks(
 
 /// Merge a vector of Vec<String> using predefined pattern into one
 fn merge(
-    playlists: Vec<Vec<String>>,
+    playlists: &mut VecDeque<Vec<String>>,
     pattern: MergePattern
 ) -> Vec<String>
 {
@@ -184,19 +187,33 @@ fn merge(
         },
 
         MergePattern::Alternate => {
-            println!("Not yet implemented");
-            return vec![];
+            let mut out = vec![];
+
+            while ! playlists.is_empty() {
+                let mut front = playlists.pop_front().unwrap();
+                if front.is_empty() {
+                    continue;
+                }   else{
+                    out.push(front.pop().unwrap());
+                    playlists.push_back(front);
+                }
+            }
+            out.reverse();
+            return out;
         },
 
         MergePattern::Random => {
-            let mut out = random_vector::RandomVector::new();
-            for v in playlists{
-                for t in v{
-                    out.push(t);
-                }
-            }
-
-            return out.vector;
+            // let mut out = random_vector::RandomVector::new();
+            // for v in playlists{
+            //     for t in v{
+            //         out.push(t);
+            //     }
+            // }
+            // return out.vector();
+            let mut rnd = rand::thread_rng();
+            let mut out = merge(playlists, MergePattern::Append);
+            out.shuffle(&mut rnd);
+            return out;
         },
     }
 }
