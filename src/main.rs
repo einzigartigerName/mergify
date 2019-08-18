@@ -14,8 +14,8 @@ use rspotify::spotify::util::get_token;
 use rspotify::spotify::oauth2::{SpotifyClientCredentials, SpotifyOAuth};
 
 /// your client-id from spotify and the redirect-url after the OAuth
-const CLIENT_ID: &'static str = "fbf4964d9dfd419d939068bb4372f4ee";
-const CLIENT_SECRET: &'static str = "fa297e5629724ffb80dae27296b18214";
+const CLIENT_ID: &'static str = "your-client-id";
+const CLIENT_SECRET: &'static str = "your-secret-client-id";
 const REDIRECT_URI: &'static str = "http://localhost:8888/callback";
 
 enum MergePattern
