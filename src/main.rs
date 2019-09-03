@@ -1,11 +1,10 @@
-// mod random_vector;
-
 #[macro_use] extern crate lazy_static;
 extern crate rspotify;
 extern crate regex;
 extern crate rand;
 
 use rand::seq::SliceRandom;
+use std::process;
 use std::io;
 use std::collections::VecDeque;
 use regex::Regex;
@@ -72,13 +71,19 @@ fn main() {
                 .unwrap()
                 .id;
 
-            // add all tracks to new playlist
-            let result = spotify.user_playlist_add_tracks(&me_id, &npl_id, &tracks_add, None);
-            match result
-            {
-                Ok(_) => println!("Succesfully merged both Playlists and saved in: {}", npl_name),
-                Err(err) => println!("ERROR: {}", err),
+            for ta in tracks_add {
+                let result = spotify.user_playlist_add_tracks(&me_id, &npl_id, &ta, None);
+                match result
+                {
+                    Ok(_) => (),
+                    Err(err) => {
+                        println!("ERROR: {}", err);
+                        process::exit(1);
+                    },
+                }
             }
+            println!("Succesfully merged both Playlists and saved in: {}", npl_name);
+            // add all tracks to new playlist
 
         }
         None => println!("auth failed"),
@@ -171,7 +176,7 @@ fn get_all_tracks(
 fn merge(
     playlists: &mut VecDeque<Vec<String>>,
     pattern: MergePattern
-) -> Vec<String>
+) -> Vec<Vec<String>>
 {
     match pattern
     {
@@ -183,7 +188,7 @@ fn merge(
                 out = out.iter().cloned().chain(v.iter().cloned()).collect();
             }
 
-            return out;
+            return prep_for_adding(&mut out)
         },
 
         MergePattern::Alternate => {
@@ -199,21 +204,36 @@ fn merge(
                 }
             }
             out.reverse();
-            return out;
+            return prep_for_adding(&mut out);
         },
 
         MergePattern::Random => {
-            // let mut out = random_vector::RandomVector::new();
-            // for v in playlists{
-            //     for t in v{
-            //         out.push(t);
-            //     }
-            // }
-            // return out.vector();
             let mut rnd = rand::thread_rng();
-            let mut out = merge(playlists, MergePattern::Append);
-            out.shuffle(&mut rnd);
+            let tmp = merge(playlists, MergePattern::Append);
+            
+            let mut out = vec![];
+            for mut v in tmp{
+                v.shuffle(&mut rnd);
+                out.push(v);
+            }
+
             return out;
         },
     }
+}
+
+fn prep_for_adding(
+    vec: &mut Vec<String>
+) -> Vec<Vec<String>>
+{
+    let mut out = vec![];
+    
+    while vec.len() > 100 {
+        let l = vec.split_off(100);
+        out.push(l);
+    }
+
+    out.push(vec.to_vec());
+    out.reverse();
+    return out;
 }
