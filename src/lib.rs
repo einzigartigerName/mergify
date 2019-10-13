@@ -7,6 +7,8 @@ use std::io::{self, Write};
 use std::collections::VecDeque;
 use regex::Regex;
 use rspotify::spotify::client::Spotify;
+use rspotify::spotify::util::{request_token, process_token};
+use rspotify::spotify::oauth2::{SpotifyOAuth, TokenInfo};
 
 
 pub enum MergePattern
@@ -214,4 +216,19 @@ fn prepare_track_list_for_adding(
     out.push(vec.to_vec());
     out.reverse();
     return out;
+}
+
+// --------------------------------------------------------------------
+//                  Authorization
+// --------------------------------------------------------------------
+
+/// get tokenInfo by Authorization
+pub fn get_token(spotify_oauth: &mut SpotifyOAuth) -> Option<TokenInfo> {
+    request_token(spotify_oauth);
+    println!("Enter the URL you were redirected to: ");
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => process_token(spotify_oauth, &mut input),
+        Err(_) => None,
+    }
 }

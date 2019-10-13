@@ -6,7 +6,6 @@ use lib::*;
 use std::process;
 use std::collections::VecDeque;
 use rspotify::spotify::client::Spotify;
-use rspotify::spotify::util::get_token;
 use rspotify::spotify::oauth2::{SpotifyClientCredentials, SpotifyOAuth};
 
 /// your client-id from spotify and the redirect-url after the OAuth
